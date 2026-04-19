@@ -1,0 +1,1 @@
+"""Module de stockage : gestion des chemins et I/O parquet."""
