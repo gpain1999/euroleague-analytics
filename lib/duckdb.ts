@@ -2,69 +2,47 @@ import { DuckDBInstance, DuckDBConnection } from '@duckdb/node-api';
 import path from 'node:path';
 import fs from 'node:fs';
 
-/**
- * Accès centralisé à DuckDB.
- *
- * En Phase 0, la base pointe vers un fichier de démo généré par
- * pipeline/scripts/bootstrap_demo_db.py. À partir de la Phase 1, ce fichier
- * sera produit par le pipeline réel et versionné sur la branche `data`.
- *
- * La connexion est mise en cache au niveau du process pour éviter de
- * réouvrir le fichier à chaque requête API. DuckDB supporte un seul writer
- * mais de multiples readers concurrents, et ici l'API est read-only.
- */
-
 const DUCKDB_PATH = process.env.DUCKDB_PATH ?? 'public/data/euroleague.duckdb';
 
 let instancePromise: Promise<DuckDBInstance> | null = null;
+let connectionPromise: Promise<DuckDBConnection> | null = null;
 
-async function getInstance(): Promise<DuckDBInstance> {
+async function getConnection(): Promise<DuckDBConnection> {
   if (!instancePromise) {
     const absPath = path.resolve(process.cwd(), DUCKDB_PATH);
-
     if (!fs.existsSync(absPath)) {
       throw new DuckDBNotFoundError(
         `Base DuckDB introuvable à ${absPath}. ` +
           `Lance d'abord : python pipeline/scripts/bootstrap_demo_db.py`
       );
     }
-
     instancePromise = DuckDBInstance.create(absPath, {
       access_mode: 'READ_ONLY'
     });
   }
-  return instancePromise;
+  if (!connectionPromise) {
+    const instance = await instancePromise;
+    connectionPromise = instance.connect();
+  }
+  return connectionPromise;
 }
 
 /**
- * Exécute une requête SQL et retourne les lignes comme des objets typés.
+ * Exécute une requête SQL et retourne les lignes typées.
+ * La connexion est mise en cache au niveau du process.
  *
- * Usage :
- *   const rows = await duckdbQuery<{ season: number; games: number }>(`
- *     SELECT season, COUNT(*) AS games FROM dim_games GROUP BY season
- *   `);
+ * Phase 0 : pas de paramètres liés (pas nécessaire sur la base de démo).
+ * Phase 2+ : on ajoutera une version paramétrée typée proprement avec
+ * prepared statements pour le moteur de splits.
  */
 export async function duckdbQuery<T = Record<string, unknown>>(
-  sql: string,
-  params: unknown[] = []
+  sql: string
 ): Promise<T[]> {
-  const instance = await getInstance();
-  const conn: DuckDBConnection = await instance.connect();
-  try {
-    const reader =
-      params.length > 0
-        ? await conn.runAndReadAll(sql, params)
-        : await conn.runAndReadAll(sql);
-    return reader.getRowObjects() as T[];
-  } finally {
-    conn.closeSync();
-  }
+  const conn = await getConnection();
+  const reader = await conn.runAndReadAll(sql);
+  return reader.getRowObjects() as T[];
 }
 
-/**
- * Retourne les infos basiques sur la base : tables présentes et nb de lignes
- * de chaque. Utile pour la page admin et le healthcheck.
- */
 export async function duckdbInspect(): Promise<{
   path: string;
   tables: Array<{ name: string; rows: number }>;
@@ -83,10 +61,7 @@ export async function duckdbInspect(): Promise<{
     })
   );
 
-  return {
-    path: DUCKDB_PATH,
-    tables: withCounts
-  };
+  return { path: DUCKDB_PATH, tables: withCounts };
 }
 
 export class DuckDBNotFoundError extends Error {

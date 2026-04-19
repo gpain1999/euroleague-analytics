@@ -13,8 +13,18 @@ type Game = {
 async function fetchHealth() {
   try {
     const info = await duckdbInspect();
-    const sample = await duckdbQuery<Game>(
-      `SELECT season, gamecode, date, home_code, away_code, home_score, away_score
+const sample = await duckdbQuery<{
+      season: number;
+      gamecode: number;
+      date: string;
+      home_code: string;
+      away_code: string;
+      home_score: number;
+      away_score: number;
+    }>(
+      `SELECT season, gamecode,
+              CAST(date AS VARCHAR) AS date,
+              home_code, away_code, home_score, away_score
        FROM dim_games
        ORDER BY date DESC
        LIMIT 5`
@@ -129,13 +139,19 @@ export default async function HomePage() {
           </section>
         </>
       ) : (
-        <section className="card border-danger/40">
-          <h2 className="text-lg font-semibold">Base de données introuvable</h2>
+<section className="card border-danger/40">
+          <h2 className="text-lg font-semibold">
+            {health.reason === 'not-found'
+              ? 'Base de données introuvable'
+              : 'Erreur DuckDB'}
+          </h2>
           <p className="mt-2 text-sm text-fg-muted">{health.message}</p>
-          <pre className="mt-4 overflow-x-auto rounded-md border border-border bg-bg-elevated p-4 font-mono text-xs">
+          {health.reason === 'not-found' && (
+            <pre className="mt-4 overflow-x-auto rounded-md border border-border bg-bg-elevated p-4 font-mono text-xs">
 {`# Génère une base DuckDB de démonstration :
 python pipeline/scripts/bootstrap_demo_db.py`}
-          </pre>
+            </pre>
+          )}
         </section>
       )}
 
