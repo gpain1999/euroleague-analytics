@@ -49,8 +49,8 @@ storage/*.duckdb
 storage/*.duckdb.wal
 
 # La base de démo EST commitée, mais pas les gros artefacts générés
-public/data/*.duckdb
-public/data/*.duckdb.wal
+# public/data/*.duckdb
+# public/data/*.duckdb.wal
 public/data/*.parquet
 !public/data/.gitkeep
 !public/data/demo.duckdb
