@@ -1,0 +1,66 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "euroleague-pipeline"
+version = "0.1.0"
+description = "Pipeline d'ingestion EuroLeague Analytics"
+requires-python = ">=3.11"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+# =========================================================================
+# pytest
+# =========================================================================
+[tool.pytest.ini_options]
+minversion = "8.0"
+testpaths = ["tests"]
+pythonpath = ["src"]
+addopts = [
+    "-ra",
+    "--strict-markers",
+    "--strict-config",
+]
+markers = [
+    "slow: tests lents (réseau, gros volumes)",
+    "integration: tests d'intégration avec l'API EuroLeague",
+]
+
+# =========================================================================
+# ruff (lint + format)
+# =========================================================================
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+src = ["src", "tests", "scripts"]
+
+[tool.ruff.lint]
+select = [
+    "E",    # pycodestyle errors
+    "W",    # pycodestyle warnings
+    "F",    # pyflakes
+    "I",    # isort
+    "B",    # bugbear
+    "C4",   # comprehensions
+    "UP",   # pyupgrade
+    "SIM",  # simplify
+    "RUF",  # ruff-specific
+]
+ignore = ["E501"]  # géré par le formatter
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["B011"]
+"scripts/**" = ["T201"]  # print() autorisé
+
+# =========================================================================
+# mypy
+# =========================================================================
+[tool.mypy]
+python_version = "3.11"
+strict = false
+ignore_missing_imports = true
+warn_unused_ignores = true
+warn_redundant_casts = true
+mypy_path = "src"

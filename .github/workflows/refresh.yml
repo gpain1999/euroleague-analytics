@@ -1,0 +1,95 @@
+name: Daily data refresh
+
+# IMPORTANT : Phase 0 — ce workflow n'est déclenchable que manuellement.
+# Le cron sera activé en Phase 6 une fois le pipeline fiabilisé.
+#
+# Une fois activé :
+#   - schedule: cron '0 0 * * *'  (minuit UTC)
+#   - commit des nouveaux parquets et .duckdb sur la branche `data`
+#   - Vercel redéploie automatiquement au push sur `data`
+on:
+  workflow_dispatch:
+    inputs:
+      seasons:
+        description: 'Saisons à traiter (CSV, ex: 2024,2025). Vide = toutes.'
+        required: false
+        default: ''
+      force_full:
+        description: 'Refetch complet (ignore le cache local)'
+        required: false
+        default: 'false'
+        type: choice
+        options:
+          - 'false'
+          - 'true'
+
+  # Activé en Phase 6 :
+  # schedule:
+  #   - cron: '0 0 * * *'
+
+concurrency:
+  group: refresh
+  cancel-in-progress: false  # on laisse finir, on ne coupe pas en cours
+
+jobs:
+  refresh:
+    name: Pipeline refresh
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: write  # pour push sur la branche data
+
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+          cache-dependency-path: 'pipeline/requirements.txt'
+
+      - name: Install pipeline dependencies
+        working-directory: pipeline
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run pipeline
+        working-directory: pipeline
+        env:
+          SEASONS_FILTER: ${{ github.event.inputs.seasons }}
+          FORCE_FULL: ${{ github.event.inputs.force_full }}
+        run: |
+          echo "Phase 0 : squelette, le pipeline réel arrive en Phase 1."
+          python -m pipeline.run
+          # TODO Phase 1+ : pipeline réel
+          # args=""
+          # if [ -n "$SEASONS_FILTER" ]; then
+          #   IFS=',' read -ra SS <<< "$SEASONS_FILTER"
+          #   for s in "${SS[@]}"; do args="$args --season $s"; done
+          # fi
+          # python -m pipeline.run $args
+
+      # Les étapes suivantes seront activées en Phase 6 :
+      #
+      # - name: Commit to data branch
+      #   run: |
+      #     git config user.name "github-actions[bot]"
+      #     git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+      #     git fetch origin data || git checkout --orphan data
+      #     git checkout data
+      #     cp -r public/data/* .
+      #     git add -A
+      #     git diff --cached --quiet || git commit -m "chore(data): daily refresh $(date -u +%Y-%m-%d)"
+      #     git push origin data
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "### Refresh result" >> $GITHUB_STEP_SUMMARY
+          echo "Seasons : ${{ github.event.inputs.seasons || 'all' }}" >> $GITHUB_STEP_SUMMARY
+          echo "Force full : ${{ github.event.inputs.force_full }}" >> $GITHUB_STEP_SUMMARY
+          echo "Status : ${{ job.status }}" >> $GITHUB_STEP_SUMMARY

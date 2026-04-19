@@ -1,0 +1,35 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    @apply bg-bg text-fg;
+    font-feature-settings: 'cv11', 'ss01';
+  }
+  body {
+    @apply min-h-screen font-sans antialiased;
+  }
+  ::selection {
+    @apply bg-accent/40 text-fg;
+  }
+}
+
+@layer components {
+  .card {
+    @apply rounded-lg border border-border bg-bg-card p-6;
+  }
+  .btn {
+    @apply inline-flex items-center justify-center rounded-md px-4 py-2 text-sm font-medium
+           transition-colors focus-visible:outline-none focus-visible:ring-2
+           focus-visible:ring-accent disabled:pointer-events-none disabled:opacity-50;
+  }
+  .btn-primary {
+    @apply btn bg-accent text-fg hover:bg-accent-hover;
+  }
+  .btn-ghost {
+    @apply btn hover:bg-bg-hover;
+  }
+}

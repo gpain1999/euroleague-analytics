@@ -1,0 +1,6 @@
+# Répertoire de stockage DuckDB
+
+Ce répertoire contient la base `euroleague.duckdb` lue par les API Next.js.
+
+- En développement : génère-la avec `python pipeline/scripts/bootstrap_demo_db.py`
+- En production : elle sera alimentée par le pipeline via la branche `data` du repo
